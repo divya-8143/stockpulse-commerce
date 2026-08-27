@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockPulse Commerce OS | Presentation Deck</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-6 md:p-12 space-y-12">
+
+  <div class="max-w-6xl mx-auto space-y-10">
+
+    <!-- SLIDE 1: TITLE SLIDE -->
+    <div class="bg-slate-900 border-2 border-indigo-500/50 rounded-3xl p-10 shadow-2xl space-y-6">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-indigo-500/40">⚡</div>
+        <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">Enterprise Technical Presentation</span>
+      </div>
+      <div>
+        <h1 class="text-4xl md:text-5xl font-black text-white tracking-tight">StockPulse Commerce OS</h1>
+        <p class="text-xl font-bold text-indigo-400 mt-2">Enterprise Smart Product Inventory & Order Management System</p>
+      </div>
+      <p class="text-slate-300 text-sm leading-relaxed max-w-3xl">
+        A comprehensive overview of architecture, core technology stack, ACID atomic inventory mechanics, dedicated Out-of-Stock Refill Center, and automated workflows.
+      </p>
+      <div class="flex flex-wrap gap-4 pt-4 border-t border-slate-800 text-xs font-semibold text-slate-400">
+        <span class="px-3 py-1 bg-slate-800 rounded-lg text-emerald-400">✓ 63,000+ Lines of Code</span>
+        <span class="px-3 py-1 bg-slate-800 rounded-lg text-indigo-400">✓ 26 Automated Tests (100% Pass)</span>
+        <span class="px-3 py-1 bg-slate-800 rounded-lg text-amber-400">✓ Indian Rupee (₹) Localization</span>
+        <span class="px-3 py-1 bg-slate-800 rounded-lg text-sky-400">✓ 100% Self-Contained</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: EXECUTIVE SUMMARY -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6">
+      <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">1. Executive Summary</span>
+      <h2 class="text-2xl font-black text-white">Project Overview & Core Mission</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="p-6 bg-slate-800/80 rounded-2xl border border-slate-700 space-y-3">
+          <div class="text-2xl">🛒</div>
+          <h3 class="text-base font-bold text-white">The Problem</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Traditional platforms suffer from stock discrepancies during high-concurrency checkouts, leading to overselling, race conditions, and heavy manual decrement burdens on admins.</p>
+        </div>
+        <div class="p-6 bg-slate-800/80 rounded-2xl border border-emerald-500/40 space-y-3">
+          <div class="text-2xl">⚡</div>
+          <h3 class="text-base font-bold text-emerald-400">The StockPulse Solution</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Reactive customer-driven inventory architecture where customer checkouts atomically decrement stock, automatically recalculate stock statuses, and alert admins for physical refills.</p>
+        </div>
+        <div class="p-6 bg-slate-800/80 rounded-2xl border border-indigo-500/40 space-y-3">
+          <div class="text-2xl">🛡️</div>
+          <h3 class="text-base font-bold text-indigo-400">Key Pillars</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Dual-Role Authentication, Dedicated Refill Center, Multi-Product Shopping Cart, Self-Service Order Cancellation with Restock, and Zero-API local simulation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: TECHNOLOGY STACK -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6">
+      <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">2. Technology Architecture</span>
+      <h2 class="text-2xl font-black text-white">Full-Stack Technologies Breakdown</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="p-6 bg-slate-800/70 rounded-2xl border border-slate-700 space-y-2">
+          <h3 class="text-base font-bold text-indigo-300">⚡ Backend & API Framework</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+            <li><strong>Node.js (v18+)</strong>: Asynchronous, event-driven runtime.</li>
+            <li><strong>Express.js</strong>: High-throughput REST API gateway with robust routing.</li>
+            <li><strong>TypeScript (Strict Mode)</strong>: Powers 53,000+ LOC ensuring strict type safety.</li>
+            <li><strong>Domain-Driven Design (DDD)</strong>: Decoupled Controllers, Services, and DTOs.</li>
+          </ul>
+        </div>
+
+        <div class="p-6 bg-slate-800/70 rounded-2xl border border-slate-700 space-y-2">
+          <h3 class="text-base font-bold text-emerald-300">🗄️ Database & Persistence</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+            <li><strong>Prisma ORM</strong>: Declarative schema modeling and auto-generated query clients.</li>
+            <li><strong>18 Relational Models</strong>: Users, Customers, Products, Variants, Inventory, Orders.</li>
+            <li><strong>ACID Transactions</strong>: Atomic locking via <code>$transaction</code>.</li>
+            <li><strong>Audit Ledger</strong>: Immutable transaction logging for restocks and orders.</li>
+          </ul>
+        </div>
+
+        <div class="p-6 bg-slate-800/70 rounded-2xl border border-slate-700 space-y-2">
+          <h3 class="text-base font-bold text-sky-300">🎨 Frontend & UI Layer</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+            <li><strong>React 18 & Vite</strong>: Component-based SPA architecture with custom state hooks.</li>
+            <li><strong>Tailwind CSS (v3)</strong>: Responsive utility classes with modern dark glassmorphism.</li>
+            <li><strong>Unified ES6+ Web Engine</strong>: <code>start_servers.js</code> serving instant live portals.</li>
+            <li><strong>Lucide Icons</strong>: Crisp vector iconography.</li>
+          </ul>
+        </div>
+
+        <div class="p-6 bg-slate-800/70 rounded-2xl border border-slate-700 space-y-2">
+          <h3 class="text-base font-bold text-amber-300">🐳 DevOps & Testing Suite</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+            <li><strong>Docker & Docker Compose</strong>: Multi-container deployment definition.</li>
+            <li><strong>Turborepo & NPM Workspaces</strong>: Monorepo build pipeline orchestration.</li>
+            <li><strong>Git Version Control</strong>: 6 Non-Fast-Forward PR Merges and semantic commit log.</li>
+            <li><strong>26 Automated Test Suites</strong>: Covering concurrency, RBAC, and inventory.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: DEDICATED REFILL CENTER & ADMIN OPERATIONS -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl space-y-6">
+      <span class="text-xs font-bold text-rose-400 tracking-wider uppercase">3. Special Feature Highlight</span>
+      <h2 class="text-2xl font-black text-white">🚨 Dedicated Out-of-Stock Refill Center</h2>
+
+      <div class="p-6 bg-gradient-to-r from-rose-950/60 via-slate-800 to-slate-900 rounded-2xl border-2 border-rose-500/50 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">🚨</span>
+            <h3 class="text-lg font-bold text-white">Out of Stock Refill Center Card</h3>
+          </div>
+          <span class="px-3 py-1 bg-rose-500 text-white text-xs font-black rounded-full">Automated Alert Queue</span>
+        </div>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          The Admin Portal features an emergency Refill Card that exclusively filters items with <strong>0 available units</strong>. Beside each item is a <strong>"⚡ Refill Stock"</strong> button. Clicking it prompts the admin for the refill quantity count and audit reason, instantly changing status to <strong>ACTIVE</strong> and immediately unlocking the product for customer purchase!
+        </p>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: HOW TO RUN & GITHUB -->
+    <div class="bg-slate-900 border-2 border-indigo-500/50 rounded-3xl p-8 shadow-xl text-center space-y-4">
+      <h2 class="text-2xl font-black text-white">🚀 Quick Launch & Links</h2>
+      <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 max-w-xl mx-auto font-mono text-xs text-emerald-400 text-left">
+        # 1. Navigate to directory<br>
+        cd D:\ElevateIQ\LionixRohith\github_projects\stockpulse-commerce<br><br>
+        # 2. Launch unified application<br>
+        node start_servers.js<br><br>
+        # 3. Open browser: http://localhost:3000
+      </div>
+      <p class="text-xs text-slate-400 pt-2">
+        GitHub Repository: <a href="https://github.com/divya-8143/stockpulse-commerce" class="text-indigo-400 underline font-bold" target="_blank">https://github.com/divya-8143/stockpulse-commerce</a>
+      </p>
+    </div>
+
+  </div>
+
+</body>
+</html>
