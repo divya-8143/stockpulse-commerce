@@ -482,6 +482,33 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
+      
+      <!-- ================= URGENT OUT-OF-STOCK REFILL CENTER CARD ================= -->
+      <div id="admin-refill-queue-card" class="bg-gradient-to-r from-rose-950/50 via-slate-900 to-amber-950/30 rounded-3xl border-2 border-rose-500/40 p-6 shadow-2xl space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-rose-500/20">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-rose-600/30 text-rose-400 border border-rose-500/50 flex items-center justify-center text-xl font-bold animate-pulse">
+              🚨
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-lg font-black text-white">Out of Stock Refill Center</h3>
+                <span id="refill-badge-count" class="px-2.5 py-0.5 bg-rose-500/30 text-rose-300 border border-rose-500/50 text-[11px] font-black rounded-full uppercase">0 Items</span>
+              </div>
+              <p class="text-xs text-rose-200/80">These products currently have zero available units and cannot be ordered by customers. Click Refill to add stock count.</p>
+            </div>
+          </div>
+          <div class="text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-800">
+            ⚡ Quick Refill Action • Instant Storefront Sync
+          </div>
+        </div>
+
+        <!-- Out of Stock Items Container -->
+        <div id="refill-items-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Populated dynamically via JS with only OUT_OF_STOCK items -->
+        </div>
+      </div>
+
       <!-- Filters & Search Toolbar -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
         <div class="relative flex-1">
@@ -1021,6 +1048,11 @@ app.get("/", (req, res) => {
     function openAddProductModal() { document.getElementById('add-product-modal').classList.remove('hidden'); }
     function closeAddProductModal() { document.getElementById('add-product-modal').classList.add('hidden'); }
 
+    
+    function promptQuickRefill(sku, name, currentOnHand) {
+      openAddStockModal(sku, name, currentOnHand);
+    }
+
     function openAddStockModal(sku, name, onHand) {
       document.getElementById('add-stock-sku').value = sku;
       document.getElementById('add-stock-prod-name').innerText = name + ' (' + sku + ')';
@@ -1345,6 +1377,54 @@ app.get("/", (req, res) => {
           <td class="py-3 px-3 text-slate-400 text-[11px]">\${t.reason}</td>
         </tr>
       \`).join('');
+
+      
+      // Render Out-of-Stock Refill Center Card
+      const outOfStockItems = stateProducts.filter(p => {
+        const avail = Math.max(0, p.onHand - p.reserved);
+        return avail === 0 || p.onHand === 0;
+      });
+
+      const refillBadge = document.getElementById('refill-badge-count');
+      const refillList = document.getElementById('refill-items-list');
+
+      if (refillBadge && refillList) {
+        refillBadge.innerText = outOfStockItems.length + (outOfStockItems.length === 1 ? ' Item Needs Refill' : ' Items Need Refill');
+        
+        if (outOfStockItems.length === 0) {
+          refillList.innerHTML = `
+            <div class="md:col-span-2 p-6 bg-emerald-950/30 border border-emerald-500/30 rounded-2xl flex items-center justify-between text-emerald-300 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="text-base">✓</span>
+                <span class="font-bold">All products are in stock! No out-of-stock items requiring refill.</span>
+              </div>
+              <span class="text-slate-400">Inventory Status: Optimal</span>
+            </div>
+          `;
+        } else {
+          refillList.innerHTML = outOfStockItems.map(p => `
+            <div class="p-4 bg-slate-900/90 border border-rose-500/40 hover:border-rose-400 rounded-2xl flex items-center justify-between gap-4 shadow-lg transition">
+              <div class="flex items-center gap-3">
+                <div class="text-3xl p-2 bg-slate-800 rounded-xl border border-slate-700">${p.image || '📦'}</div>
+                <div>
+                  <div class="font-bold text-white text-sm">${p.name}</div>
+                  <div class="text-xs font-mono text-slate-400">${p.sku} • ${p.category}</div>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-rose-950 text-rose-300 border border-rose-500/50 rounded-md text-[10px] font-black">OUT OF STOCK (0 units)</span>
+                    <span class="text-[11px] text-slate-400">Safety: ${p.safetyStock} units</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <button onclick="promptQuickRefill('${p.sku}', '${p.name.replace(/'/g, "\\'")}', ${p.onHand})" class="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-1.5 transition transform hover:scale-105">
+                  <span>⚡</span>
+                  <span>Refill Stock</span>
+                </button>
+              </div>
+            </div>
+          `).join('');
+        }
+      }
 
       // Summary KPIs
       const summaryRes = await fetch('/api/v1/admin/summary');
