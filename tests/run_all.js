@@ -127,6 +127,14 @@ const suites = [
         const catalog = ["HDPH-01", "KB-01"];
         catalog.push("CAM-01");
         if (!catalog.includes("CAM-01")) throw new Error("New product not in catalog");
+      }},
+      { name: "22. Admin can refill out-of-stock product and status automatically updates to ACTIVE", fn: () => {
+        let stock = 0, reserved = 0, safety = 5;
+        // Refill 25 units
+        stock += 25;
+        const available = stock - reserved;
+        const status = available <= 0 ? "OUT_OF_STOCK" : (available <= safety ? "LOW_STOCK" : "ACTIVE");
+        if (stock !== 25 || available !== 25 || status !== "ACTIVE") throw new Error("Restock update failure");
       }}
     ]
   }

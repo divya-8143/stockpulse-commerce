@@ -214,6 +214,39 @@ app.get("/api/v1/admin/summary", (req, res) => {
   });
 });
 
+
+// Admin Restock / Refill Product API
+app.post("/api/v1/admin/restock", (req, res) => {
+  const { sku, refillQuantity, reason, warehouse } = req.body;
+  const prod = state.products.find(p => p.sku === sku);
+  if (!prod) return res.status(404).json({ success: false, error: `SKU '${sku}' not found.` });
+
+  const qty = parseInt(refillQuantity, 10);
+  if (isNaN(qty) || qty <= 0) {
+    return res.status(400).json({ success: false, error: "Refill quantity must be greater than 0." });
+  }
+
+  const prevOnHand = prod.onHand;
+  prod.onHand += qty;
+  const newAvailable = Math.max(0, prod.onHand - prod.reserved);
+  const newStatus = getProductStatus(prod.onHand, prod.reserved, prod.safetyStock);
+
+  res.json({
+    success: true,
+    data: {
+      sku: prod.sku,
+      name: prod.name,
+      previousOnHand: prevOnHand,
+      refilledQuantity: qty,
+      newOnHand: prod.onHand,
+      available: newAvailable,
+      status: newStatus,
+      reason: reason || "Inbound Supplier Restock"
+    },
+    message: `Successfully refilled ${qty} units for ${prod.name}! Status updated to ${newStatus}.`
+  });
+});
+
 // HTML Dual Portal with Complete Real-world E-Commerce Flow
 app.get("/", (req, res) => {
   res.send(`
@@ -376,7 +409,7 @@ app.get("/", (req, res) => {
                 <th class="py-3 px-3 text-amber-400">Reserved</th>
                 <th class="py-3 px-3 text-emerald-400">Available</th>
                 <th class="py-3 px-3">Safety Stock</th>
-                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3">Status</th><th class="py-3 px-3 text-right">Inventory Action</th>
               </tr>
             </thead>
             <tbody id="admin-inventory-tbody" class="divide-y divide-slate-800 text-xs font-medium">
@@ -398,7 +431,7 @@ app.get("/", (req, res) => {
                 <th class="py-3 px-3">Items</th>
                 <th class="py-3 px-3">Total (₹)</th>
                 <th class="py-3 px-3">Payment</th>
-                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3">Status</th><th class="py-3 px-3 text-right">Inventory Action</th>
                 <th class="py-3 px-3">Timestamp</th>
               </tr>
             </thead>
@@ -562,6 +595,55 @@ app.get("/", (req, res) => {
           Continue Shopping
         </button>
       </div>
+    </div>
+  </div>
+
+  
+  <!-- ================= RESTOCK / REFILL MODAL (ADMIN) ================= -->
+  <div id="restock-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-black text-white flex items-center gap-2">
+          <span>📦</span> Refill & Restock Product
+        </h3>
+        <button onclick="closeRestockModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="restock-form" class="space-y-3.5 text-xs">
+        <input type="hidden" id="restock-sku" />
+        <div>
+          <label class="block text-slate-400 mb-1">Target Product</label>
+          <div id="restock-prod-name" class="font-bold text-white text-sm bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Current On Hand</label>
+            <div id="restock-current-stock" class="font-mono font-bold text-amber-400 bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Refill Units (+) *</label>
+            <input id="restock-qty" type="number" min="1" max="10000" required value="25" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Restock Reason</label>
+          <select id="restock-reason" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="Inbound Supplier Shipment">Inbound Supplier Shipment</option>
+            <option value="Warehouse Transfer">Warehouse Transfer</option>
+            <option value="Physical Inventory Audit Correction">Physical Inventory Audit Correction</option>
+            <option value="Customer Return Restock">Customer Return Restock</option>
+          </select>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeRestockModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl shadow-lg shadow-emerald-600/30 transition">
+            ⚡ Confirm Restock
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -805,6 +887,44 @@ app.get("/", (req, res) => {
       document.getElementById('checkout-modal').classList.remove('hidden');
     }
     function closeCheckoutModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
+
+    
+    function openRestockModal(sku, name, currentOnHand) {
+      document.getElementById('restock-sku').value = sku;
+      document.getElementById('restock-prod-name').innerText = name + ' (' + sku + ')';
+      document.getElementById('restock-current-stock').innerText = currentOnHand + ' units';
+      document.getElementById('restock-qty').value = currentOnHand === 0 ? '30' : '20';
+      document.getElementById('restock-modal').classList.remove('hidden');
+    }
+
+    function closeRestockModal() {
+      document.getElementById('restock-modal').classList.add('hidden');
+    }
+
+    document.getElementById('restock-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const sku = document.getElementById('restock-sku').value;
+      const refillQuantity = parseInt(document.getElementById('restock-qty').value, 10);
+      const reason = document.getElementById('restock-reason').value;
+
+      try {
+        const res = await fetch('/api/v1/admin/restock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sku, refillQuantity, reason })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ ' + data.message);
+          closeRestockModal();
+          refreshData();
+        } else {
+          alert('✗ ' + data.error);
+        }
+      } catch (err) {
+        alert('Restock error: ' + err.message);
+      }
+    });
 
     function openAddProductModal() { document.getElementById('add-product-modal').classList.remove('hidden'); }
     function closeAddProductModal() { document.getElementById('add-product-modal').classList.add('hidden'); }
