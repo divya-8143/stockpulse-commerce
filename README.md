@@ -1,87 +1,57 @@
-# ⚡ StockPulse Commerce
+# StockPulse Commerce OS
 
-> Enterprise-grade Smart Product Inventory & Order Management System. Built with TypeScript, Node.js, Express, React 18, Tailwind CSS, Prisma, and Turborepo.
+Enterprise-grade Smart Product Inventory & Order Management System. Built with TypeScript, Node.js, Express, Tailwind CSS, and Prisma relational schema.
 
----
+## Features
 
-## 🌟 Key Highlights & Capabilities
+- **Dual-Role Authentication**: Customer & Admin role-based separation.
+- **Smart Product Inventory**: Real-time ACID atomic stock reservation and customer-driven inventory deduction.
+- **Out of Stock Refill Center**: Dedicated Admin Refill Queue for 0-unit items with 1-click quantity refill modals.
+- **Multi-Product Shopping Cart**: Product quantity controls (`[-] 1 [+]`), dynamic subtotal in Indian Rupees (₹), and auto-free delivery.
+- **Demo Payment Gateways**: Simulated Paytm UPI, PhonePe UPI, and Cash on Delivery (COD) without external API keys.
+- **Order State Machine & Cancellation Restock**: Real-time order fulfillment pipeline with automatic warehouse stock restoration on cancellation.
+- **Inventory Audit Trail**: Immutable transaction logging for all restock, order, and adjustment operations.
 
-- **Atomic Stock Reservation Engine**: ACID-compliant stock reservation preventing race conditions and double-selling during flash sales.
-- **Out-of-Stock Order Prevention**: Real-time pre-flight checkout validation with variant-level availability checks and diagnostic error reporting.
-- **Automated Order Lifecycle & State Machine**: State transitions (`PENDING` $	o$ `CONFIRMED` $	o$ `PROCESSING` $	o$ `SHIPPED` $	o$ `DELIVERED` / `CANCELLED`) with automatic inventory sync and instant cancellation restocking.
-- **Multi-Warehouse Matrix**: Track and transfer stock balances across central logistics hubs and regional fulfillment centers.
-- **Automated Safety Stock Alarms**: Real-time low-stock alerts with `HIGH` and `CRITICAL` severity dispatch.
-- **Executive Analytics & ABC Classification**: Pareto (80/20) inventory categorization, daily sales velocity, turnover rates, and exportable CSV/JSON audit reports.
-- **Customer CRM & LTV Intelligence**: Real-time customer Lifetime Value (LTV) calculation, Average Order Value (AOV), and automatic VIP tier progression.
+## Requirements
 
----
+- Node.js >= 18.0.0
+- npm >= 9.0.0
 
-## 📐 Monorepo Architecture
+## Installation
 
-```
-stockpulse-commerce/
-├── apps/
-│   ├── api/                 # Modular Express / TypeScript REST API & Domain Services
-│   ├── admin/               # React 18 + Vite + Tailwind CSS Enterprise Dashboard
-│   └── storefront/          # Customer Store & Real-time Stock Reservation Portal
-├── packages/
-│   ├── shared-types/        # Universal TypeScript DTOs, Enums & Zod Schemas
-│   ├── database/            # Prisma ORM schema, Multi-Warehouse models & Seeds
-│   ├── reporting-engine/    # ABC Pareto analysis, Forecasting & Valuation Exporters
-│   ├── ui-kit/              # Reusable React component system
-│   └── logger/              # Structured JSON telemetry & Audit log sink
-├── tests/                   # Automated Unit, Concurrency & Integration Test Suites
-└── docs/                    # Architecture diagrams, API specs & Deployment guides
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-- **Node.js**: `v18.0.0` or later
-- **NPM**: `v9.0.0` or later
-
-### 2. Installation
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/divya-8143/stockpulse-commerce.git
 cd stockpulse-commerce
+
+# Install root & workspace dependencies
 npm install
 ```
 
-### 3. Run Automated Tests
+## Build
+
 ```bash
+# Build TypeScript workspace packages and UI assets
+npm run build
+```
+
+## Run
+
+```bash
+# Start unified application (Storefront, Admin Portal, REST API)
+node start_servers.js
+```
+Open **http://localhost:3000** in your browser.
+
+## Tests
+
+```bash
+# Execute comprehensive 26+ automated regression test suite
 node tests/run_all.js
 ```
 
-### 4. Database Setup & Seeding
+## Docker Deployment
+
 ```bash
-npm run db:push
-npm run db:seed
+docker-compose up -d --build
 ```
-
-### 5. Start Development Servers
-```bash
-npm run dev
-```
-- **Admin Dashboard**: `http://localhost:3000`
-- **REST API Gateway**: `http://localhost:4000`
-- **Health Endpoint**: `http://localhost:4000/api/v1/health`
-
----
-
-## 🧪 Automated Test Suite Coverage
-
-| Test Suite | Focus Area | Status |
-| :--- | :--- | :--- |
-| `Stock Reservation & Concurrency` | ACID reservation locks & race condition defense | ✅ PASS |
-| `Out-of-Stock Prevention` | Zero-stock rejection & diagnostics | ✅ PASS |
-| `Order State Machine Sync` | Stock reservation hold, fulfillment deduction, cancellation release | ✅ PASS |
-| `Low Stock Safety Alarms` | Reorder point triggers & critical alarms | ✅ PASS |
-| `Pareto ABC Classification` | 80/20 inventory categorization & turnover analytics | ✅ PASS |
-| `Customer CRM & LTV` | Spend aggregation & VIP tier progression | ✅ PASS |
-
----
-
-## 📄 License
-MIT License. Open source enterprise software.
