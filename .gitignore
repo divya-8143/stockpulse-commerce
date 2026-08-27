@@ -1,0 +1,14 @@
+node_modules/
+.turbo/
+dist/
+build/
+.next/
+coverage/
+*.log
+.env
+.env.local
+.env.production
+*.sqlite
+*.sqlite-journal
+.DS_Store
+Thumbs.db

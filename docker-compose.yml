@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: stockpulse_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: stockpulse_user
+      POSTGRES_PASSWORD: stockpulse_secret_password
+      POSTGRES_DB: stockpulse_commerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockpulse_user -d stockpulse_commerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: stockpulse_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: stockpulse_api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://stockpulse_user:stockpulse_secret_password@postgres:5432/stockpulse_commerce
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: stockpulse_jwt_super_secure_enterprise_secret_2026
+    ports:
+      - "4000:4000"
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: stockpulse_admin
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  redis_data:
