@@ -1,0 +1,281 @@
+// StockPulse Enterprise Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         String    @default("INVENTORY_MANAGER") // SUPER_ADMIN, INVENTORY_MANAGER, etc.
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs    AuditLog[]
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   String?  // JSON string
+  newValues   String?  // JSON string
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  level       Int        @default(1)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  products    Product[]
+}
+
+model Brand {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  website   String?
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id                   String           @id @default(uuid())
+  name                 String
+  slug                 String           @unique
+  description          String
+  categoryId           String
+  category             Category         @relation(fields: [categoryId], references: [id])
+  brandId              String?
+  brand                Brand?           @relation(fields: [brandId], references: [id])
+  status               String           @default("ACTIVE") // DRAFT, ACTIVE, ARCHIVED
+  basePrice            Float
+  baseCost             Float
+  tags                 String           @default("[]") // JSON string array
+  images               String           @default("[]") // JSON string array
+  safetyStockThreshold Int              @default(10)
+  abcClassification    String?          @default("CLASS_B")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  variants             ProductVariant[]
+}
+
+model ProductVariant {
+  id             String          @id @default(uuid())
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku            String          @unique
+  barcode        String?
+  title          String
+  price          Float
+  costPrice      Float
+  compareAtPrice Float?
+  weightGrams    Int?
+  options        String          @default("{}") // JSON key-value
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  inventoryItems InventoryItem[]
+  orderItems     OrderItem[]
+  adjustments    StockAdjustmentLog[]
+  alerts         LowStockAlert[]
+}
+
+model Warehouse {
+  id          String          @id @default(uuid())
+  code        String          @unique
+  name        String
+  address     String
+  city        String
+  country     String
+  isActive    Boolean         @default(true)
+  isPrimary   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+
+  inventories InventoryItem[]
+  adjustments StockAdjustmentLog[]
+  orderItems  OrderItem[]
+}
+
+model InventoryItem {
+  id                 String         @id @default(uuid())
+  variantId          String
+  variant            ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouseId        String
+  warehouse          Warehouse      @relation(fields: [warehouseId], references: [id])
+  quantityOnHand     Int            @default(0)
+  quantityReserved   Int            @default(0)
+  reorderPoint       Int            @default(15)
+  reorderQuantity    Int            @default(50)
+  binLocation        String?
+  lastAuditedAt      DateTime?
+  updatedAt          DateTime       @updatedAt
+
+  adjustments        StockAdjustmentLog[]
+
+  @@unique([variantId, warehouseId])
+}
+
+model StockAdjustmentLog {
+  id                     String         @id @default(uuid())
+  inventoryItemId        String
+  inventoryItem          InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  variantId              String
+  variant                ProductVariant @relation(fields: [variantId], references: [id])
+  warehouseId            String
+  warehouse              Warehouse      @relation(fields: [warehouseId], references: [id])
+  changeQuantity         Int
+  previousQuantityOnHand Int
+  newQuantityOnHand      Int
+  reason                 String         // RESTOCK, SALE_RESERVATION, etc.
+  referenceOrderId       String?
+  performedByUserId      String?
+  note                   String?
+  createdAt              DateTime       @default(now())
+}
+
+model Customer {
+  id                String            @id @default(uuid())
+  firstName         String
+  lastName          String
+  email             String            @unique
+  phone             String?
+  tier              String            @default("STANDARD") // STANDARD, SILVER, GOLD, PLATINUM
+  totalOrders       Int               @default(0)
+  totalSpent        Float             @default(0.0)
+  averageOrderValue Float             @default(0.0)
+  firstOrderDate    DateTime?
+  lastOrderDate     DateTime?
+  isActive          Boolean           @default(true)
+  tags              String            @default("[]")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  addresses         CustomerAddress[]
+  orders            Order[]
+}
+
+model CustomerAddress {
+  id                String   @id @default(uuid())
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  fullName          String
+  company           String?
+  address1          String
+  address2          String?
+  city              String
+  state             String
+  postalCode        String
+  country           String
+  phone             String
+  isDefaultShipping Boolean  @default(false)
+  isDefaultBilling  Boolean  @default(false)
+}
+
+model Order {
+  id              String         @id @default(uuid())
+  orderNumber     String         @unique
+  customerId      String
+  customer        Customer       @relation(fields: [customerId], references: [id])
+  status          String         @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+  paymentStatus   String         @default("PENDING")
+  subtotal        Float
+  discountTotal   Float          @default(0.0)
+  taxTotal        Float          @default(0.0)
+  shippingTotal   Float          @default(0.0)
+  grandTotal      Float
+  totalProfit     Float          @default(0.0)
+  shippingAddress String         // JSON
+  billingAddress  String         // JSON
+  notes           String?
+  trackingNumber  String?
+  carrier         String?
+  placedAt        DateTime       @default(now())
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  items           OrderItem[]
+  histories       OrderHistory[]
+}
+
+model OrderItem {
+  id             String         @id @default(uuid())
+  orderId        String
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId      String
+  variant        ProductVariant @relation(fields: [variantId], references: [id])
+  warehouseId    String
+  warehouse      Warehouse      @relation(fields: [warehouseId], references: [id])
+  productName    String
+  sku            String
+  quantity       Int
+  unitPrice      Float
+  unitCost       Float
+  totalPrice     Float
+  totalCost      Float
+  taxAmount      Float          @default(0.0)
+  discountAmount Float          @default(0.0)
+}
+
+model OrderHistory {
+  id                String   @id @default(uuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus        String
+  toStatus          String
+  note              String?
+  performedByUserId String?
+  createdAt         DateTime @default(now())
+}
+
+model LowStockAlert {
+  id               String         @id @default(uuid())
+  variantId        String
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouseId      String
+  currentAvailable Int
+  threshold        Int
+  severity         String         @default("HIGH")
+  isResolved       Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+}
+
+model AnalyticsSnapshot {
+  id             String   @id @default(uuid())
+  date           String   @unique // YYYY-MM-DD
+  totalRevenue   Float
+  totalOrders    Int
+  totalUnitsSold Int
+  grossProfit    Float
+  averageAOV     Float
+  activeSKUs     Int
+  outOfStockSKUs Int
+  createdAt      DateTime @default(now())
+}
