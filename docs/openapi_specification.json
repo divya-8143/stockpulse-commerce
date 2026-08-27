@@ -1,0 +1,103 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "StockPulse Enterprise E-Commerce & Inventory Management API",
+    "description": "Production-grade RESTful API specification for high-throughput product catalog management, atomic stock reservation, automated order state machines, multi-location warehouse routing, and financial analytics.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "StockPulse Engineering Architecture Team",
+      "email": "architecture@stockpulse.commerce"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api/v1",
+      "description": "Local Development Server"
+    },
+    {
+      "url": "https://api.stockpulse.commerce/v1",
+      "description": "Production High-Availability Cluster"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Service Health & Liveness Probe",
+        "responses": {
+          "200": {
+            "description": "System is healthy and database connection is active"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Authenticate user session and issue JWT token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Authentication successful" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/catalog/products": {
+      "get": {
+        "summary": "List paginated products with multi-variant stock levels",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "categoryId", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": {
+          "200": { "description": "Product catalog list" }
+        }
+      },
+      "post": {
+        "summary": "Create new multi-variant product with initial warehouse allocations",
+        "responses": {
+          "201": { "description": "Product created successfully" }
+        }
+      }
+    },
+    "/inventory/check-availability": {
+      "post": {
+        "summary": "Atomic pre-flight stock availability check",
+        "responses": {
+          "200": { "description": "Real-time stock availability status" }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "summary": "Create order, validate out-of-stock guard, and atomically reserve inventory",
+        "responses": {
+          "201": { "description": "Order created and stock reserved" },
+          "400": { "description": "Out of stock or invalid items" }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "post": {
+        "summary": "Transition order status in state machine",
+        "responses": {
+          "200": { "description": "Status updated and inventory synchronized" }
+        }
+      }
+    }
+  }
+}
