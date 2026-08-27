@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+let PORT = parseInt(process.env.PORT, 10) || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -156,7 +156,7 @@ app.get("/", (req, res) => {
       <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-indigo-500/30">⚡</div>
       <div>
         <h1 class="text-base font-bold text-white tracking-tight">StockPulse Commerce OS</h1>
-        <p class="text-xs text-emerald-400 font-medium">● Localhost Cluster Online (Port ${PORT})</p>
+        <p class="text-xs text-emerald-400 font-medium">● Localhost Cluster Online (Port \${PORT})</p>
       </div>
     </div>
     <div class="flex items-center gap-3">
@@ -377,6 +377,22 @@ app.get("/", (req, res) => {
   `);
 });
 
-app.listen(PORT, () => {
-  console.log(`[SERVER_RUNNING] StockPulse Live on Port ${PORT}`);
-});
+function startServer(portToTry) {
+  const server = app.listen(portToTry, () => {
+    console.log(`\n🚀 StockPulse Commerce OS is live!`);
+    console.log(`👉 Access Dashboard: http://localhost:\${portToTry}`);
+    console.log(`👉 Health Probe:     http://localhost:\${portToTry}/api/v1/health`);
+    console.log(`👉 API Endpoints:    http://localhost:\${portToTry}/api/v1/catalog/products\n`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.log(`[PORT IN USE] Port \${portToTry} is occupied, trying port \${portToTry + 1}...`);
+      startServer(portToTry + 1);
+    } else {
+      console.error(err);
+    }
+  });
+}
+
+startServer(PORT);
