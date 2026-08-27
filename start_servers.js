@@ -7,14 +7,17 @@ let PORT = parseInt(process.env.PORT, 10) || 3000;
 app.use(cors());
 app.use(express.json());
 
-// In-Memory Real-time State (in INR ₹)
+// In-Memory Production State (in INR ₹)
 let state = {
   products: [
-    { id: "1", name: "Apex Wireless ANC Headphones", sku: "HDPH-ANC-BLK", category: "Audio & Headphones", description: "Studio-grade 45dB Active Noise Cancellation with 40h battery.", price: 14999, cost: 6500, onHand: 120, reserved: 5, safetyStock: 15, image: "🎧" },
-    { id: "2", name: "HyperGear RGB Mechanical Keyboard", sku: "KB-MECH-RED", category: "PC Peripherals", description: "Hot-swappable tactile switches with aircraft aluminum body.", price: 8999, cost: 4200, onHand: 95, reserved: 5, safetyStock: 20, image: "⌨️" },
-    { id: "3", name: "HyperCharge 120W GaN Desktop Charger", sku: "PWR-GAN-120W", category: "Power & Cables", description: "4-Port fast GaN III power station with dynamic load balancing.", price: 4499, cost: 1800, onHand: 12, reserved: 4, safetyStock: 15, image: "🔌" },
-    { id: "4", name: "Apex Precision Wireless 8K Gaming Mouse", sku: "MOU-8K-BLK", category: "PC Peripherals", description: "Ultralight 49g mouse with 8000Hz polling rate and optical clicks.", price: 5999, cost: 2400, onHand: 6, reserved: 2, safetyStock: 12, image: "🖱️" },
-    { id: "5", name: "Pro 4K Ultra-Wide Monitor 34-inch", sku: "DISP-4K-34", category: "Displays", description: "144Hz curved IPS 1ms panel with 99% DCI-P3 color gamut.", price: 45999, cost: 26000, onHand: 0, reserved: 0, safetyStock: 5, image: "🖥️" }
+    { id: "1", name: "Apex Wireless ANC Headphones", sku: "HDPH-ANC-BLK", category: "Audio & Headphones", description: "Studio-grade 45dB Active Noise Cancellation with 40h battery.", price: 14999, cost: 6500, onHand: 120, reserved: 5, safetyStock: 15, warehouse: "Central Logistics Hub", image: "🎧" },
+    { id: "2", name: "HyperGear RGB Mechanical Keyboard", sku: "KB-MECH-RED", category: "PC Peripherals", description: "Hot-swappable tactile switches with aircraft aluminum body.", price: 8999, cost: 4200, onHand: 95, reserved: 5, safetyStock: 20, warehouse: "Central Logistics Hub", image: "⌨️" },
+    { id: "3", name: "HyperCharge 120W GaN Desktop Charger", sku: "PWR-GAN-120W", category: "Power & Cables", description: "4-Port fast GaN III power station with dynamic load balancing.", price: 4499, cost: 1800, onHand: 12, reserved: 4, safetyStock: 15, warehouse: "East Coast Hub", image: "🔌" },
+    { id: "4", name: "Apex Precision Wireless 8K Gaming Mouse", sku: "MOU-8K-BLK", category: "PC Peripherals", description: "Ultralight 49g mouse with 8000Hz polling rate and optical clicks.", price: 5999, cost: 2400, onHand: 6, reserved: 2, safetyStock: 12, warehouse: "West Coast Hub", image: "🖱️" },
+    { id: "5", name: "Pro 4K Ultra-Wide Monitor 34-inch", sku: "DISP-4K-34", category: "Displays", description: "144Hz curved IPS 1ms panel with 99% DCI-P3 color gamut.", price: 45999, cost: 26000, onHand: 0, reserved: 0, safetyStock: 5, warehouse: "Central Logistics Hub", image: "🖥️" }
+  ],
+  transactions: [
+    { id: "TXN-901", type: "STOCK_ADDED", productName: "Apex Wireless ANC Headphones", sku: "HDPH-ANC-BLK", warehouse: "Central Logistics Hub", quantityChanged: 50, previousStock: 70, newStock: 120, performedBy: "Alex Mercer (Admin)", timestamp: "2026-08-27 10:00", reason: "Inbound Supplier Batch #841" }
   ],
   customers: [
     { id: "cust-1", name: "John Doe", email: "user@stockpulse.commerce", password: "user123", role: "CUSTOMER", tier: "GOLD", phone: "9876543210" }
@@ -23,7 +26,7 @@ let state = {
     { id: "admin-1", name: "Alex Mercer", email: "admin@stockpulse.commerce", password: "admin123", role: "SUPER_ADMIN" }
   ],
   orders: [
-    { id: "ORD-948201", customerId: "cust-1", customerName: "John Doe", items: [{ sku: "HDPH-ANC-BLK", name: "Apex Wireless ANC Headphones", quantity: 2, price: 14999 }], total: 29998, paymentMethod: "PhonePe (Demo)", paymentStatus: "PAID", status: "CONFIRMED", date: "2026-08-27 12:30" }
+    { id: "ORD-948201", customerId: "cust-1", customerName: "John Doe", items: [{ sku: "HDPH-ANC-BLK", name: "Apex Wireless ANC Headphones", quantity: 2, price: 14999 }], total: 29998, paymentMethod: "PhonePe UPI (Demo)", paymentStatus: "PAID", status: "CONFIRMED", date: "2026-08-27 12:30" }
   ]
 };
 
@@ -34,12 +37,12 @@ function getProductStatus(onHand, reserved, safety) {
   return "ACTIVE";
 }
 
-// Health Check
+// Health API
 app.get("/api/v1/health", (req, res) => {
   res.json({ status: "HEALTHY", service: "StockPulse E-Commerce OS", currency: "INR", symbol: "₹" });
 });
 
-// Products API
+// Products API (Storefront & Admin)
 app.get("/api/v1/catalog/products", (req, res) => {
   const list = state.products.map(p => ({
     ...p,
@@ -49,34 +52,137 @@ app.get("/api/v1/catalog/products", (req, res) => {
   res.json({ success: true, data: list });
 });
 
-// Admin Add Product API
+// Admin Add New Product API
 app.post("/api/v1/admin/products", (req, res) => {
-  const { name, sku, category, description, price, cost, initialStock, safetyStock, image } = req.body;
-  if (!name || !sku || !price) return res.status(400).json({ success: false, error: "Missing required fields." });
-
-  if (state.products.some(p => p.sku.toUpperCase() === sku.toUpperCase())) {
-    return res.status(409).json({ success: false, error: `SKU '${sku}' already exists.` });
+  const { name, sku, category, description, price, cost, initialStock, safetyStock, warehouse, image } = req.body;
+  if (!name || !sku || !price) {
+    return res.status(400).json({ success: false, error: "Product name, SKU, and selling price are required." });
   }
+
+  const skuUpper = sku.trim().toUpperCase();
+  if (state.products.some(p => p.sku === skuUpper)) {
+    return res.status(409).json({ success: false, error: `SKU '${skuUpper}' already exists in catalog.` });
+  }
+
+  const initialQty = Math.max(0, parseInt(initialStock, 10) || 0);
+  const safetyThreshold = Math.max(1, parseInt(safetyStock, 10) || 10);
+  const warehouseName = warehouse || "Central Logistics Hub";
 
   const newProd = {
     id: `prod-${Date.now()}`,
-    name,
-    sku: sku.toUpperCase(),
+    name: name.trim(),
+    sku: skuUpper,
     category: category || "General",
-    description: description || "Quality product",
+    description: description || "Enterprise high-performance hardware item.",
     price: parseFloat(price),
     cost: parseFloat(cost || price * 0.5),
-    onHand: parseInt(initialStock, 10) || 0,
+    onHand: initialQty,
     reserved: 0,
-    safetyStock: parseInt(safetyStock, 10) || 10,
+    safetyStock: safetyThreshold,
+    warehouse: warehouseName,
     image: image || "📦"
   };
 
-  state.products.push(newProd);
-  res.status(201).json({ success: true, data: newProd, message: "Product successfully added!" });
+  state.products.unshift(newProd);
+
+  // Record initial stock transaction
+  if (initialQty > 0) {
+    state.transactions.unshift({
+      id: `TXN-${Date.now().toString().slice(-6)}`,
+      type: "STOCK_ADDED",
+      productName: newProd.name,
+      sku: newProd.sku,
+      warehouse: warehouseName,
+      quantityChanged: initialQty,
+      previousStock: 0,
+      newStock: initialQty,
+      performedBy: "Alex Mercer (Admin)",
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
+      reason: "Initial Product Creation Stock"
+    });
+  }
+
+  res.status(201).json({
+    success: true,
+    data: {
+      ...newProd,
+      available: initialQty,
+      status: getProductStatus(initialQty, 0, safetyThreshold)
+    },
+    message: `Product '${newProd.name}' (${newProd.sku}) created successfully with ${initialQty} initial stock!`
+  });
 });
 
-// Customer Place Multi-Product Order
+// Admin Add Stock / Refill API
+app.post("/api/v1/admin/add-stock", (req, res) => {
+  const { sku, quantityToAdd, reason, adminName } = req.body;
+  const prod = state.products.find(p => p.sku === sku);
+  if (!prod) return res.status(404).json({ success: false, error: `Product with SKU '${sku}' not found.` });
+
+  const qty = parseInt(quantityToAdd, 10);
+  if (isNaN(qty) || qty <= 0) {
+    return res.status(400).json({ success: false, error: "Quantity to add must be a positive integer." });
+  }
+
+  const prevStock = prod.onHand;
+  prod.onHand += qty;
+  const newAvailable = Math.max(0, prod.onHand - prod.reserved);
+  const newStatus = getProductStatus(prod.onHand, prod.reserved, prod.safetyStock);
+
+  const tx = {
+    id: `TXN-${Date.now().toString().slice(-6)}`,
+    type: "STOCK_ADDED",
+    productName: prod.name,
+    sku: prod.sku,
+    warehouse: prod.warehouse || "Central Logistics Hub",
+    quantityChanged: qty,
+    previousStock: prevStock,
+    newStock: prod.onHand,
+    performedBy: adminName || "Alex Mercer (Admin)",
+    timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
+    reason: reason || "Inbound Physical Stock Arrival"
+  };
+
+  state.transactions.unshift(tx);
+
+  res.json({
+    success: true,
+    data: {
+      sku: prod.sku,
+      name: prod.name,
+      previousStock: prevStock,
+      added: qty,
+      newStock: prod.onHand,
+      available: newAvailable,
+      status: newStatus
+    },
+    message: `Added ${qty} units to '${prod.name}'. Status is now ${newStatus}.`
+  });
+});
+
+// Admin Edit Product Info API
+app.post("/api/v1/admin/products/:sku/edit", (req, res) => {
+  const prod = state.products.find(p => p.sku === req.params.sku);
+  if (!prod) return res.status(404).json({ success: false, error: "Product not found" });
+
+  const { name, category, description, price, cost, safetyStock, warehouse } = req.body;
+  if (name) prod.name = name;
+  if (category) prod.category = category;
+  if (description) prod.description = description;
+  if (price && Number(price) > 0) prod.price = parseFloat(price);
+  if (cost && Number(cost) >= 0) prod.cost = parseFloat(cost);
+  if (safetyStock && Number(safetyStock) >= 1) prod.safetyStock = parseInt(safetyStock, 10);
+  if (warehouse) prod.warehouse = warehouse;
+
+  res.json({ success: true, data: prod, message: "Product details updated successfully!" });
+});
+
+// Admin Inventory Transactions API
+app.get("/api/v1/admin/transactions", (req, res) => {
+  res.json({ success: true, data: state.transactions });
+});
+
+// Customer Place Multi-Product Order (Automatic Inventory Deduction)
 app.post("/api/v1/orders/place-order", (req, res) => {
   const { customerId, customerName, customerEmail, shippingAddress, items, paymentMethod } = req.body;
 
@@ -84,7 +190,7 @@ app.post("/api/v1/orders/place-order", (req, res) => {
     return res.status(400).json({ success: false, error: "Order cart is empty." });
   }
 
-  // 1. Strict Out-of-Stock Validation
+  // 1. Out-of-Stock Pre-flight Guard
   for (const item of items) {
     const prod = state.products.find(p => p.sku === item.sku);
     if (!prod) return res.status(404).json({ success: false, error: `SKU '${item.sku}' not found.` });
@@ -104,15 +210,31 @@ app.post("/api/v1/orders/place-order", (req, res) => {
 
   for (const item of items) {
     const prod = state.products.find(p => p.sku === item.sku);
+    const prevOnHand = prod.onHand;
     prod.onHand = Math.max(0, prod.onHand - item.quantity);
     const lineTotal = prod.price * item.quantity;
     subtotal += lineTotal;
+
     orderItems.push({
       sku: prod.sku,
       name: prod.name,
       quantity: item.quantity,
       price: prod.price,
       lineTotal
+    });
+
+    state.transactions.unshift({
+      id: `TXN-${Date.now().toString().slice(-6)}`,
+      type: "ORDER_FULFILLED",
+      productName: prod.name,
+      sku: prod.sku,
+      warehouse: prod.warehouse || "Central Logistics Hub",
+      quantityChanged: -item.quantity,
+      previousStock: prevOnHand,
+      newStock: prod.onHand,
+      performedBy: customerName || "Customer",
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
+      reason: `Customer Order Checkout`
     });
   }
 
@@ -163,41 +285,41 @@ app.post("/api/v1/orders/:id/cancel", (req, res) => {
   // Restore inventory
   for (const item of order.items) {
     const prod = state.products.find(p => p.sku === item.sku);
-    if (prod) prod.onHand += item.quantity;
+    if (prod) {
+      const prev = prod.onHand;
+      prod.onHand += item.quantity;
+      state.transactions.unshift({
+        id: `TXN-${Date.now().toString().slice(-6)}`,
+        type: "ORDER_CANCELLED_RESTOCK",
+        productName: prod.name,
+        sku: prod.sku,
+        warehouse: prod.warehouse || "Central Logistics Hub",
+        quantityChanged: item.quantity,
+        previousStock: prev,
+        newStock: prod.onHand,
+        performedBy: "System (Cancellation Restock)",
+        timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
+        reason: `Cancellation Restock for Order ${order.id}`
+      });
+    }
   }
 
   order.status = "CANCELLED";
   res.json({ success: true, data: order, message: "Order cancelled. Inventory automatically restored!" });
 });
 
-// Customer Orders
+// Customer Orders API
 app.get("/api/v1/users/:customerId/orders", (req, res) => {
   const list = state.orders.filter(o => o.customerId === req.params.customerId);
   res.json({ success: true, data: list });
 });
 
-// Admin All Orders
+// Admin All Orders API
 app.get("/api/v1/admin/orders", (req, res) => {
   res.json({ success: true, data: state.orders });
 });
 
-// Admin Read-Only Inventory View
-app.get("/api/v1/admin/inventory-view", (req, res) => {
-  const inv = state.products.map(p => ({
-    product: p.name,
-    sku: p.sku,
-    warehouse: "Central Logistics Hub",
-    onHand: p.onHand,
-    reserved: p.reserved,
-    available: Math.max(0, p.onHand - p.reserved),
-    safetyStock: p.safetyStock,
-    status: getProductStatus(p.onHand, p.reserved, p.safetyStock),
-    price: p.price
-  }));
-  res.json({ success: true, data: inv });
-});
-
-// Admin Summary
+// Admin Summary Metrics API
 app.get("/api/v1/admin/summary", (req, res) => {
   const totalRev = state.orders.filter(o => o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0);
   const totalVal = state.products.reduce((s, p) => s + (p.onHand * p.cost), 0);
@@ -214,40 +336,7 @@ app.get("/api/v1/admin/summary", (req, res) => {
   });
 });
 
-
-// Admin Restock / Refill Product API
-app.post("/api/v1/admin/restock", (req, res) => {
-  const { sku, refillQuantity, reason, warehouse } = req.body;
-  const prod = state.products.find(p => p.sku === sku);
-  if (!prod) return res.status(404).json({ success: false, error: `SKU '${sku}' not found.` });
-
-  const qty = parseInt(refillQuantity, 10);
-  if (isNaN(qty) || qty <= 0) {
-    return res.status(400).json({ success: false, error: "Refill quantity must be greater than 0." });
-  }
-
-  const prevOnHand = prod.onHand;
-  prod.onHand += qty;
-  const newAvailable = Math.max(0, prod.onHand - prod.reserved);
-  const newStatus = getProductStatus(prod.onHand, prod.reserved, prod.safetyStock);
-
-  res.json({
-    success: true,
-    data: {
-      sku: prod.sku,
-      name: prod.name,
-      previousOnHand: prevOnHand,
-      refilledQuantity: qty,
-      newOnHand: prod.onHand,
-      available: newAvailable,
-      status: newStatus,
-      reason: reason || "Inbound Supplier Restock"
-    },
-    message: `Successfully refilled ${qty} units for ${prod.name}! Status updated to ${newStatus}.`
-  });
-});
-
-// HTML Dual Portal with Complete Real-world E-Commerce Flow
+// Master Dual Portal Frontend
 app.get("/", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -255,13 +344,10 @@ app.get("/", (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StockPulse Commerce | Real-World E-Commerce OS</title>
+  <title>StockPulse Commerce | Enterprise OS</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .currency-symbol:before { content: '₹'; }
-  </style>
+  <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
@@ -306,13 +392,13 @@ app.get("/", (req, res) => {
   <!-- ================= MAIN CONTAINER ================= -->
   <main class="max-w-7xl mx-auto p-6 flex-1 w-full space-y-8">
 
-    <!-- VIEW 1: STOREFRONT & CATALOG -->
+    <!-- VIEW 1: STOREFRONT -->
     <div id="view-store" class="space-y-6">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 p-6 rounded-3xl border border-slate-800 shadow-2xl">
         <div>
-          <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">Indian Tech Hardware Catalog</span>
-          <h2 class="text-2xl font-black text-white mt-1">Featured High-Performance Gear</h2>
-          <p class="text-xs text-slate-400 mt-1">Direct atomic inventory reservation. Add multiple products and pay with Paytm, PhonePe, or COD.</p>
+          <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">Live Products & Hardware Catalog</span>
+          <h2 class="text-2xl font-black text-white mt-1">Featured Inventory Items</h2>
+          <p class="text-xs text-slate-400 mt-1">Automatic real-time stock deduction on customer orders. Out-of-stock items cannot be ordered.</p>
         </div>
         <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-2xl border border-slate-700 text-xs">
           <span>⚡ Free Express Delivery on orders above <strong>₹2,000</strong></span>
@@ -356,17 +442,19 @@ app.get("/", (req, res) => {
 
     <!-- VIEW 3: ADMIN PORTAL -->
     <div id="view-admin" class="space-y-6 hidden">
+      <!-- Admin Header with Prominent Add New Product Button -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl">
         <div>
           <div class="flex items-center gap-2">
             <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-bold uppercase">Executive Portal</span>
-            <span class="text-xs text-emerald-400 font-bold">● Automatic Sync Online</span>
+            <span class="text-xs text-emerald-400 font-bold">● Automatic Inventory System Active</span>
           </div>
-          <h2 class="text-2xl font-black text-white mt-2">Inventory & Catalog Operations</h2>
-          <p class="text-xs text-slate-400">Read-only inventory monitoring driven by customer orders. Create new products with safety stock thresholds.</p>
+          <h2 class="text-2xl font-black text-white mt-2">Product & Inventory Management</h2>
+          <p class="text-xs text-slate-400">Add new products with initial stock, refill existing products, and monitor customer-driven inventory.</p>
         </div>
-        <button onclick="openAddProductModal()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
-          <span>+</span> Add New Product
+        <button onclick="openAddProductModal()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center gap-2">
+          <span class="text-base font-bold">+</span>
+          <span>Add New Product</span>
         </button>
       </div>
 
@@ -375,12 +463,12 @@ app.get("/", (req, res) => {
         <div class="p-6 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
           <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Sales Revenue</span>
           <div class="mt-2 text-2xl font-black text-white" id="admin-stat-rev">₹0</div>
-          <span class="inline-block mt-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">INR Currencies</span>
+          <span class="inline-block mt-2 text-xs font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">Live Stream</span>
         </div>
         <div class="p-6 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Orders</span>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Customer Orders</span>
           <div class="mt-2 text-2xl font-black text-white" id="admin-stat-orders">0</div>
-          <span class="inline-block mt-2 text-xs font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/30">Customer Placed</span>
+          <span class="inline-block mt-2 text-xs font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/30">Auto-Fulfillment</span>
         </div>
         <div class="p-6 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl">
           <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Inventory Valuation</span>
@@ -394,9 +482,30 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      <!-- Admin Read-Only Inventory Matrix -->
+      <!-- Filters & Search Toolbar -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-4 rounded-2xl border border-slate-800">
+        <div class="relative flex-1">
+          <input id="admin-search-input" oninput="applyAdminFilters()" type="text" placeholder="Search products by name or SKU..." class="w-full pl-4 pr-4 py-2 text-xs bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="flex items-center gap-3">
+          <select id="admin-filter-status" onchange="applyAdminFilters()" class="bg-slate-800 border border-slate-700 text-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
+            <option value="ALL">All Stock Statuses</option>
+            <option value="ACTIVE">Active (In Stock)</option>
+            <option value="LOW_STOCK">Low Stock</option>
+            <option value="OUT_OF_STOCK">Out of Stock</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Admin Product Management Table -->
       <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-6">
-        <h3 class="text-lg font-bold text-white mb-2">Smart Inventory Matrix (Customer-Driven)</h3>
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white">Product Catalog & Inventory Matrix</h3>
+            <p class="text-xs text-slate-400">Available stock and statuses update automatically when customer orders are placed.</p>
+          </div>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-300">
             <thead class="text-xs uppercase text-slate-400 border-b border-slate-800">
@@ -404,12 +513,12 @@ app.get("/", (req, res) => {
                 <th class="py-3 px-3">Product</th>
                 <th class="py-3 px-3">SKU</th>
                 <th class="py-3 px-3">Price (₹)</th>
-                <th class="py-3 px-3">Warehouse</th>
                 <th class="py-3 px-3">On Hand</th>
                 <th class="py-3 px-3 text-amber-400">Reserved</th>
                 <th class="py-3 px-3 text-emerald-400">Available</th>
                 <th class="py-3 px-3">Safety Stock</th>
-                <th class="py-3 px-3">Status</th><th class="py-3 px-3 text-right">Inventory Action</th>
+                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody id="admin-inventory-tbody" class="divide-y divide-slate-800 text-xs font-medium">
@@ -419,23 +528,29 @@ app.get("/", (req, res) => {
         </div>
       </div>
 
-      <!-- Admin All Orders Stream -->
-      <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-6">
-        <h3 class="text-lg font-bold text-white mb-2">All Customer Orders</h3>
+      <!-- Inventory Transaction History Log -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 shadow-xl p-6 space-y-4">
+        <div>
+          <h3 class="text-lg font-bold text-white">Inventory Transaction History Log</h3>
+          <p class="text-xs text-slate-400">Audit trail of all administrative stock additions and customer order allocations.</p>
+        </div>
+
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-300">
             <thead class="text-xs uppercase text-slate-400 border-b border-slate-800">
               <tr>
-                <th class="py-3 px-3">Order ID</th>
-                <th class="py-3 px-3">Customer</th>
-                <th class="py-3 px-3">Items</th>
-                <th class="py-3 px-3">Total (₹)</th>
-                <th class="py-3 px-3">Payment</th>
-                <th class="py-3 px-3">Status</th><th class="py-3 px-3 text-right">Inventory Action</th>
+                <th class="py-3 px-3">Transaction ID</th>
+                <th class="py-3 px-3">Type</th>
+                <th class="py-3 px-3">Product / SKU</th>
+                <th class="py-3 px-3">Warehouse</th>
+                <th class="py-3 px-3">Qty Added / Deducted</th>
+                <th class="py-3 px-3">Stock Before → After</th>
+                <th class="py-3 px-3">Performed By</th>
                 <th class="py-3 px-3">Timestamp</th>
+                <th class="py-3 px-3">Reason</th>
               </tr>
             </thead>
-            <tbody id="admin-allorders-tbody" class="divide-y divide-slate-800 text-xs font-medium">
+            <tbody id="admin-transactions-tbody" class="divide-y divide-slate-800 text-xs font-medium">
               <!-- Populated via JS -->
             </tbody>
           </table>
@@ -443,6 +558,185 @@ app.get("/", (req, res) => {
       </div>
     </div>
   </main>
+
+  <!-- ================= ADD NEW PRODUCT MODAL (ADMIN) ================= -->
+  <div id="add-product-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-black text-white flex items-center gap-2">
+          <span class="text-indigo-400">➕</span>
+          <span>Add New Product to Catalog</span>
+        </h3>
+        <button onclick="closeAddProductModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="add-product-form" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Product Name *</label>
+          <input id="new-prod-name" type="text" required placeholder="e.g. Apex Smart Watch Series 5" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">SKU Code *</label>
+            <input id="new-prod-sku" type="text" required placeholder="e.g. WAT-APX-05" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white uppercase font-mono" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Category *</label>
+            <input id="new-prod-cat" type="text" required value="Wearables" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Description</label>
+          <textarea id="new-prod-desc" rows="2" placeholder="Product features and specifications..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Selling Price (₹) *</label>
+            <input id="new-prod-price" type="number" min="1" required value="18999" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Cost Price (₹)</label>
+            <input id="new-prod-cost" type="number" min="1" value="8500" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Initial Stock Quantity *</label>
+            <input id="new-prod-stock" type="number" min="0" required value="50" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-indigo-400" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Safety Stock Threshold</label>
+            <input id="new-prod-safety" type="number" min="1" value="10" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Assigned Warehouse</label>
+          <select id="new-prod-warehouse" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="Central Logistics Hub">Central Logistics Hub</option>
+            <option value="East Coast Hub">East Coast Hub</option>
+            <option value="West Coast Hub">West Coast Hub</option>
+          </select>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeAddProductModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-600/30 transition">
+            Create Product
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= ADD STOCK MODAL (ADMIN) ================= -->
+  <div id="add-stock-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-black text-white flex items-center gap-2">
+          <span>📦</span>
+          <span>Add Stock to Product</span>
+        </h3>
+        <button onclick="closeAddStockModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="add-stock-form" class="space-y-3.5 text-xs">
+        <input type="hidden" id="add-stock-sku" />
+        <div>
+          <label class="block text-slate-400 mb-1">Target Product</label>
+          <div id="add-stock-prod-name" class="font-bold text-white text-sm bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Current On Hand</label>
+            <div id="add-stock-current-val" class="font-mono font-bold text-amber-400 bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Quantity to Add (+) *</label>
+            <input id="add-stock-qty" type="number" min="1" max="10000" required value="50" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Restock Reason</label>
+          <select id="add-stock-reason" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="Supplier Shipment Inbound">Supplier Shipment Inbound</option>
+            <option value="Warehouse Transfer Receipt">Warehouse Transfer Receipt</option>
+            <option value="Physical Inventory Audit Correction">Physical Inventory Audit Correction</option>
+            <option value="Production Batch Arrival">Production Batch Arrival</option>
+          </select>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeAddStockModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl shadow-lg shadow-emerald-600/30 transition">
+            Confirm Add Stock
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= EDIT PRODUCT MODAL (ADMIN) ================= -->
+  <div id="edit-product-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-black text-white flex items-center gap-2">
+          <span>✏️</span>
+          <span>Edit Product Information</span>
+        </h3>
+        <button onclick="closeEditProductModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <form id="edit-product-form" class="space-y-3 text-xs">
+        <input type="hidden" id="edit-prod-sku" />
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Product Name</label>
+          <input id="edit-prod-name" type="text" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Category</label>
+            <input id="edit-prod-cat" type="text" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Selling Price (₹)</label>
+            <input id="edit-prod-price" type="number" min="1" required class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Cost Price (₹)</label>
+            <input id="edit-prod-cost" type="number" min="1" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Safety Stock Threshold</label>
+            <input id="edit-prod-safety" type="number" min="1" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Warehouse</label>
+          <input id="edit-prod-warehouse" type="text" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditProductModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-600/30 transition">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- ================= SHOPPING CART SLIDEOUT DRAWER ================= -->
   <div id="cart-drawer" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex justify-end transition-opacity">
@@ -490,9 +784,7 @@ app.get("/", (req, res) => {
         <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-white">✕</button>
       </div>
 
-      <!-- Checkout Form -->
       <form id="checkout-form" class="space-y-4">
-        <!-- Customer Info -->
         <div>
           <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">1. Delivery Address</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
@@ -519,7 +811,6 @@ app.get("/", (req, res) => {
           </div>
         </div>
 
-        <!-- Payment Method Selection -->
         <div>
           <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">2. Select Payment Method (Demo Simulation)</h4>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -547,15 +838,13 @@ app.get("/", (req, res) => {
           </div>
         </div>
 
-        <!-- Order Summary Breakdown -->
         <div class="p-4 bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2 text-xs">
           <div class="flex justify-between font-bold text-slate-300">
-            <span>Payable Amount:</span>
+            <span>Total Payable Amount:</span>
             <span id="chk-final-amount" class="text-base text-indigo-400 font-black">₹0</span>
           </div>
         </div>
 
-        <!-- Action Buttons -->
         <div class="flex gap-3">
           <button type="button" onclick="closeCheckoutModal()" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition">
             Cancel
@@ -598,167 +887,11 @@ app.get("/", (req, res) => {
     </div>
   </div>
 
-  
-  <!-- ================= RESTOCK / REFILL MODAL (ADMIN) ================= -->
-  <div id="restock-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <h3 class="text-base font-black text-white flex items-center gap-2">
-          <span>📦</span> Refill & Restock Product
-        </h3>
-        <button onclick="closeRestockModal()" class="text-slate-400 hover:text-white">✕</button>
-      </div>
-
-      <form id="restock-form" class="space-y-3.5 text-xs">
-        <input type="hidden" id="restock-sku" />
-        <div>
-          <label class="block text-slate-400 mb-1">Target Product</label>
-          <div id="restock-prod-name" class="font-bold text-white text-sm bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 mb-1">Current On Hand</label>
-            <div id="restock-current-stock" class="font-mono font-bold text-amber-400 bg-slate-800 p-2.5 rounded-xl border border-slate-700"></div>
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Refill Units (+) *</label>
-            <input id="restock-qty" type="number" min="1" max="10000" required value="25" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white font-bold text-sm focus:ring-2 focus:ring-indigo-500" />
-          </div>
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">Restock Reason</label>
-          <select id="restock-reason" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-white">
-            <option value="Inbound Supplier Shipment">Inbound Supplier Shipment</option>
-            <option value="Warehouse Transfer">Warehouse Transfer</option>
-            <option value="Physical Inventory Audit Correction">Physical Inventory Audit Correction</option>
-            <option value="Customer Return Restock">Customer Return Restock</option>
-          </select>
-        </div>
-
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeRestockModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
-            Cancel
-          </button>
-          <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl shadow-lg shadow-emerald-600/30 transition">
-            ⚡ Confirm Restock
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ================= ADD PRODUCT MODAL (ADMIN) ================= -->
-  <div id="add-product-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <h3 class="text-base font-black text-white flex items-center gap-2"><span>➕</span> Add New Product to Catalog</h3>
-        <button onclick="closeAddProductModal()" class="text-slate-400 hover:text-white">✕</button>
-      </div>
-
-      <form id="add-product-form" class="space-y-3 text-xs">
-        <div>
-          <label class="block text-slate-400 mb-1">Product Name *</label>
-          <input id="new-prod-name" type="text" required placeholder="e.g. Apex 4K Security Cam" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-slate-400 mb-1">SKU Code *</label>
-            <input id="new-prod-sku" type="text" required placeholder="e.g. CAM-4K-PRO" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white uppercase font-mono" />
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Category *</label>
-            <input id="new-prod-cat" type="text" required value="Smart Hardware" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-          </div>
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">Description</label>
-          <textarea id="new-prod-desc" rows="2" placeholder="Product details..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white"></textarea>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-slate-400 mb-1">Selling Price (₹) *</label>
-            <input id="new-prod-price" type="number" min="1" step="1" required value="4999" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Cost Price (₹)</label>
-            <input id="new-prod-cost" type="number" min="1" step="1" value="2200" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-slate-400 mb-1">Initial Stock (Units) *</label>
-            <input id="new-prod-stock" type="number" min="0" required value="30" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-          </div>
-          <div>
-            <label class="block text-slate-400 mb-1">Safety Stock Threshold</label>
-            <input id="new-prod-safety" type="number" min="1" value="8" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white" />
-          </div>
-        </div>
-
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeAddProductModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">
-            Cancel
-          </button>
-          <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-600/30 transition">
-            Add Product
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ================= AUTHENTICATION MODAL ================= -->
-  <div id="auth-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-md hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-        <div>
-          <h3 class="text-xl font-black text-white" id="auth-modal-title">Sign In to StockPulse</h3>
-          <p class="text-xs text-slate-400">Enterprise Shopping & Inventory Portal</p>
-        </div>
-        <button onclick="closeAuthModal()" class="text-slate-400 hover:text-white">✕</button>
-      </div>
-
-      <!-- User / Admin Toggle -->
-      <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs font-bold">
-        <button id="auth-toggle-user" onclick="setAuthMode('user')" class="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white shadow">Customer Login</button>
-        <button id="auth-toggle-admin" onclick="setAuthMode('admin')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white">Admin Login</button>
-      </div>
-
-      <form id="auth-form" class="space-y-3.5 text-xs">
-        <div>
-          <label class="block text-slate-300 font-medium mb-1">Email Address</label>
-          <input id="auth-email" type="email" required value="user@stockpulse.commerce" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white focus:ring-2 focus:ring-indigo-500" />
-        </div>
-        <div>
-          <label class="block text-slate-300 font-medium mb-1">Password</label>
-          <div class="relative">
-            <input id="auth-password" type="password" required value="user123" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pr-10 text-white focus:ring-2 focus:ring-indigo-500" />
-            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-3 text-slate-400 hover:text-white">👁️</button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-[11px] text-slate-400">
-          <label class="flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" checked class="rounded bg-slate-800 border-slate-700 text-indigo-600" />
-            <span>Remember me</span>
-          </label>
-          <a href="javascript:alert('Demo Password: user123 (Customer) / admin123 (Admin)')" class="text-indigo-400 hover:underline">Forgot password?</a>
-        </div>
-
-        <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl shadow-lg shadow-indigo-600/30 transition text-xs">
-          Sign In
-        </button>
-      </form>
-    </div>
-  </div>
-
   <script>
-    // State management
     let stateProducts = [];
     let stateCart = [];
-    let stateQuantities = {}; // SKU -> selected quantity (default 1)
+    let stateQuantities = {};
     let currentUser = { id: "cust-1", name: "John Doe", email: "user@stockpulse.commerce", role: "CUSTOMER" };
-    let currentAuthMode = "user";
 
     function formatRupees(amount) {
       return '₹' + Number(amount).toLocaleString('en-IN');
@@ -882,107 +1015,117 @@ app.get("/", (req, res) => {
     function openCartDrawer() { document.getElementById('cart-drawer').classList.remove('hidden'); }
     function closeCartDrawer() { document.getElementById('cart-drawer').classList.add('hidden'); }
 
-    function openCheckoutModal() {
-      closeCartDrawer();
-      document.getElementById('checkout-modal').classList.remove('hidden');
-    }
+    function openCheckoutModal() { closeCartDrawer(); document.getElementById('checkout-modal').classList.remove('hidden'); }
     function closeCheckoutModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
 
-    
-    function openRestockModal(sku, name, currentOnHand) {
-      document.getElementById('restock-sku').value = sku;
-      document.getElementById('restock-prod-name').innerText = name + ' (' + sku + ')';
-      document.getElementById('restock-current-stock').innerText = currentOnHand + ' units';
-      document.getElementById('restock-qty').value = currentOnHand === 0 ? '30' : '20';
-      document.getElementById('restock-modal').classList.remove('hidden');
-    }
+    function openAddProductModal() { document.getElementById('add-product-modal').classList.remove('hidden'); }
+    function closeAddProductModal() { document.getElementById('add-product-modal').classList.add('hidden'); }
 
-    function closeRestockModal() {
-      document.getElementById('restock-modal').classList.add('hidden');
+    function openAddStockModal(sku, name, onHand) {
+      document.getElementById('add-stock-sku').value = sku;
+      document.getElementById('add-stock-prod-name').innerText = name + ' (' + sku + ')';
+      document.getElementById('add-stock-current-val').innerText = onHand + ' units';
+      document.getElementById('add-stock-qty').value = onHand === 0 ? '50' : '25';
+      document.getElementById('add-stock-modal').classList.remove('hidden');
     }
+    function closeAddStockModal() { document.getElementById('add-stock-modal').classList.add('hidden'); }
 
-    document.getElementById('restock-form').addEventListener('submit', async (e) => {
+    function openEditProductModal(sku, name, category, price, cost, safetyStock, warehouse) {
+      document.getElementById('edit-prod-sku').value = sku;
+      document.getElementById('edit-prod-name').value = name;
+      document.getElementById('edit-prod-cat').value = category;
+      document.getElementById('edit-prod-price').value = price;
+      document.getElementById('edit-prod-cost').value = cost;
+      document.getElementById('edit-prod-safety').value = safetyStock;
+      document.getElementById('edit-prod-warehouse').value = warehouse || "Central Logistics Hub";
+      document.getElementById('edit-product-modal').classList.remove('hidden');
+    }
+    function closeEditProductModal() { document.getElementById('edit-product-modal').classList.add('hidden'); }
+
+    document.getElementById('add-product-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const sku = document.getElementById('restock-sku').value;
-      const refillQuantity = parseInt(document.getElementById('restock-qty').value, 10);
-      const reason = document.getElementById('restock-reason').value;
+      const name = document.getElementById('new-prod-name').value;
+      const sku = document.getElementById('new-prod-sku').value;
+      const category = document.getElementById('new-prod-cat').value;
+      const description = document.getElementById('new-prod-desc').value;
+      const price = parseFloat(document.getElementById('new-prod-price').value);
+      const cost = parseFloat(document.getElementById('new-prod-cost').value);
+      const initialStock = parseInt(document.getElementById('new-prod-stock').value, 10);
+      const safetyStock = parseInt(document.getElementById('new-prod-safety').value, 10);
+      const warehouse = document.getElementById('new-prod-warehouse').value;
 
       try {
-        const res = await fetch('/api/v1/admin/restock', {
+        const res = await fetch('/api/v1/admin/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sku, refillQuantity, reason })
+          body: JSON.stringify({ name, sku, category, description, price, cost, initialStock, safetyStock, warehouse })
         });
         const data = await res.json();
         if (data.success) {
           alert('✓ ' + data.message);
-          closeRestockModal();
+          closeAddProductModal();
           refreshData();
         } else {
           alert('✗ ' + data.error);
         }
       } catch (err) {
-        alert('Restock error: ' + err.message);
+        alert('Error: ' + err.message);
       }
     });
 
-    function openAddProductModal() { document.getElementById('add-product-modal').classList.remove('hidden'); }
-    function closeAddProductModal() { document.getElementById('add-product-modal').classList.add('hidden'); }
-
-    function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
-    function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
-
-    function setAuthMode(mode) {
-      currentAuthMode = mode;
-      const btnUser = document.getElementById('auth-toggle-user');
-      const btnAdmin = document.getElementById('auth-toggle-admin');
-      const emailInput = document.getElementById('auth-email');
-      const pwdInput = document.getElementById('auth-password');
-
-      if (mode === 'user') {
-        btnUser.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white shadow";
-        btnAdmin.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white";
-        emailInput.value = "user@stockpulse.commerce";
-        pwdInput.value = "user123";
-      } else {
-        btnAdmin.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white shadow";
-        btnUser.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white";
-        emailInput.value = "admin@stockpulse.commerce";
-        pwdInput.value = "admin123";
-      }
-    }
-
-    function togglePasswordVisibility() {
-      const p = document.getElementById('auth-password');
-      p.type = p.type === 'password' ? 'text' : 'password';
-    }
-
-    document.getElementById('auth-form').addEventListener('submit', (e) => {
+    document.getElementById('add-stock-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const email = document.getElementById('auth-email').value;
-      if (currentAuthMode === 'admin') {
-        currentUser = { id: "admin-1", name: "Alex Mercer", email, role: "SUPER_ADMIN" };
-        alert("Logged in as Administrator.");
-        setMainView('admin');
-      } else {
-        currentUser = { id: "cust-1", name: "John Doe", email, role: "CUSTOMER" };
-        alert("Logged in as Customer.");
-        setMainView('store');
+      const sku = document.getElementById('add-stock-sku').value;
+      const quantityToAdd = parseInt(document.getElementById('add-stock-qty').value, 10);
+      const reason = document.getElementById('add-stock-reason').value;
+
+      try {
+        const res = await fetch('/api/v1/admin/add-stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sku, quantityToAdd, reason })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ ' + data.message);
+          closeAddStockModal();
+          refreshData();
+        } else {
+          alert('✗ ' + data.error);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
       }
-      closeAuthModal();
-      updateAuthWidget();
     });
 
-    function updateAuthWidget() {
-      const widget = document.getElementById('auth-widget');
-      widget.innerHTML = \`
-        <div class="flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700">
-          <span>\${currentUser.role === 'SUPER_ADMIN' ? '🛡️' : '👤'}</span>
-          <span class="font-bold text-white">\${currentUser.name}</span>
-          <button onclick="openAuthModal()" class="text-indigo-400 hover:underline text-[11px]">Switch</button>
-        </div>
-      \`;
-    }
+    document.getElementById('edit-product-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const sku = document.getElementById('edit-prod-sku').value;
+      const name = document.getElementById('edit-prod-name').value;
+      const category = document.getElementById('edit-prod-cat').value;
+      const price = parseFloat(document.getElementById('edit-prod-price').value);
+      const cost = parseFloat(document.getElementById('edit-prod-cost').value);
+      const safetyStock = parseInt(document.getElementById('edit-prod-safety').value, 10);
+      const warehouse = document.getElementById('edit-prod-warehouse').value;
+
+      try {
+        const res = await fetch(\`/api/v1/admin/products/\${sku}/edit\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, category, price, cost, safetyStock, warehouse })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✓ ' + data.message);
+          closeEditProductModal();
+          refreshData();
+        } else {
+          alert('✗ ' + data.error);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
 
     document.getElementById('checkout-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -1032,45 +1175,8 @@ app.get("/", (req, res) => {
       document.getElementById('confirmation-modal').classList.remove('hidden');
     }
 
-    function closeConfirmationAndGoOrders() {
-      document.getElementById('confirmation-modal').classList.add('hidden');
-      setMainView('orders');
-    }
-
-    function closeConfirmationAndGoStore() {
-      document.getElementById('confirmation-modal').classList.add('hidden');
-      setMainView('store');
-    }
-
-    document.getElementById('add-product-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('new-prod-name').value;
-      const sku = document.getElementById('new-prod-sku').value;
-      const category = document.getElementById('new-prod-cat').value;
-      const description = document.getElementById('new-prod-desc').value;
-      const price = parseFloat(document.getElementById('new-prod-price').value);
-      const cost = parseFloat(document.getElementById('new-prod-cost').value);
-      const initialStock = parseInt(document.getElementById('new-prod-stock').value, 10);
-      const safetyStock = parseInt(document.getElementById('new-prod-safety').value, 10);
-
-      try {
-        const res = await fetch('/api/v1/admin/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, sku, category, description, price, cost, initialStock, safetyStock })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('✓ Product successfully added to catalog and inventory!');
-          closeAddProductModal();
-          refreshData();
-        } else {
-          alert('✗ ' + data.error);
-        }
-      } catch (err) {
-        alert('Error adding product: ' + err.message);
-      }
-    });
+    function closeConfirmationAndGoOrders() { document.getElementById('confirmation-modal').classList.add('hidden'); setMainView('orders'); }
+    function closeConfirmationAndGoStore() { document.getElementById('confirmation-modal').classList.add('hidden'); setMainView('store'); }
 
     async function cancelOrder(orderId) {
       if (!confirm('Are you sure you want to cancel order ' + orderId + '? Inventory will be automatically restored.')) return;
@@ -1079,7 +1185,7 @@ app.get("/", (req, res) => {
         const res = await fetch('/api/v1/orders/' + orderId + '/cancel', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert('✓ Order cancelled. Stock automatically restored back to warehouse!');
+          alert('✓ ' + data.message);
         } else {
           alert('✗ ' + data.error);
         }
@@ -1087,6 +1193,19 @@ app.get("/", (req, res) => {
         alert('Error: ' + err.message);
       }
       refreshData();
+    }
+
+    function applyAdminFilters() {
+      const q = document.getElementById('admin-search-input').value.toLowerCase();
+      const statusFilter = document.getElementById('admin-filter-status').value;
+
+      const rows = document.querySelectorAll('#admin-inventory-tbody tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        const matchesQ = text.includes(q);
+        const matchesStatus = statusFilter === 'ALL' || text.includes(statusFilter.toLowerCase());
+        r.style.display = (matchesQ && matchesStatus) ? '' : 'none';
+      });
     }
 
     async function refreshData() {
@@ -1120,7 +1239,6 @@ app.get("/", (req, res) => {
               </div>
             </div>
 
-            <!-- Quantity & Add to Cart Controls -->
             <div class="space-y-2 pt-3 border-t border-slate-800">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-slate-400 font-medium">Quantity:</span>
@@ -1171,52 +1289,64 @@ app.get("/", (req, res) => {
         </tr>
       \`).join('');
 
-      // Render Admin Data
-      const adminInvRes = await fetch('/api/v1/admin/inventory-view');
-      const adminInv = await adminInvRes.json();
+      // Render Admin Inventory Table with Actions [View] [Edit] [Add Stock]
       const adminInvTbody = document.getElementById('admin-inventory-tbody');
-      adminInvTbody.innerHTML = adminInv.data.map(i => \`
+      adminInvTbody.innerHTML = stateProducts.map(p => {
+        const avail = Math.max(0, p.onHand - p.reserved);
+        const status = getProductStatus(p.onHand, p.reserved, p.safetyStock);
+        return \`
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-3 px-3 font-bold text-white flex items-center gap-2">
+              <span>\${p.image || '📦'}</span>
+              <span>\${p.name}</span>
+            </td>
+            <td class="py-3 px-3 font-mono text-slate-400">\${p.sku}</td>
+            <td class="py-3 px-3 font-bold text-white">\${formatRupees(p.price)}</td>
+            <td class="py-3 px-3 text-white font-semibold">\${p.onHand}</td>
+            <td class="py-3 px-3 text-amber-400 font-bold">\${p.reserved}</td>
+            <td class="py-3 px-3 text-emerald-400 font-extrabold">\${avail}</td>
+            <td class="py-3 px-3 text-slate-400">\${p.safetyStock} units</td>
+            <td class="py-3 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold \${
+                status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
+                status === 'LOW_STOCK' ? 'bg-amber-950 text-amber-300 border border-amber-500/40' :
+                'bg-rose-950 text-rose-300 border border-rose-500/40'
+              }">\${status}</span>
+            </td>
+            <td class="py-3 px-3 text-right space-x-1.5 whitespace-nowrap">
+              <button onclick="alert('Product: ' + '\${p.name}' + '\\nSKU: ' + '\${p.sku}' + '\\nPrice: ' + formatRupees(\${p.price}) + '\\nCost: ' + formatRupees(\${p.cost}) + '\\nWarehouse: ' + '\${p.warehouse || 'Central Logistics Hub'}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold">View</button>
+              <button onclick="openEditProductModal('\${p.sku}', '\${p.name.replace(/'/g, "\\'")}', '\${p.category}', \${p.price}, \${p.cost}, \${p.safetyStock}, '\${p.warehouse || 'Central Logistics Hub'}')" class="px-2 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white rounded text-[11px] font-semibold">Edit</button>
+              <button onclick="openAddStockModal('\${p.sku}', '\${p.name.replace(/'/g, "\\'")}', \${p.onHand})" class="px-2.5 py-1 bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white rounded text-[11px] font-bold">Add Stock</button>
+            </td>
+          </tr>
+        \`;
+      }).join('');
+
+      // Render Admin Transactions History
+      const txRes = await fetch('/api/v1/admin/transactions');
+      const txData = await txRes.json();
+      const txTbody = document.getElementById('admin-transactions-tbody');
+      txTbody.innerHTML = txData.data.map(t => \`
         <tr class="hover:bg-slate-800/40 transition">
-          <td class="py-3 px-3 font-bold text-white">\${i.product}</td>
-          <td class="py-3 px-3 font-mono text-slate-400">\${i.sku}</td>
-          <td class="py-3 px-3 font-bold text-white">\${formatRupees(i.price)}</td>
-          <td class="py-3 px-3 text-slate-300">\${i.warehouse}</td>
-          <td class="py-3 px-3 text-white font-semibold">\${i.onHand}</td>
-          <td class="py-3 px-3 text-amber-400 font-bold">\${i.reserved}</td>
-          <td class="py-3 px-3 text-emerald-400 font-extrabold">\${i.available}</td>
-          <td class="py-3 px-3 text-slate-400">\${i.safetyStock} units</td>
+          <td class="py-3 px-3 font-mono font-bold text-indigo-400">\${t.id}</td>
           <td class="py-3 px-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold \${
-              i.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
-              i.status === 'LOW_STOCK' ? 'bg-amber-950 text-amber-300 border border-amber-500/40' :
-              'bg-rose-950 text-rose-300 border border-rose-500/40'
-            }">\${i.status}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold \${
+              t.type === 'STOCK_ADDED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30' :
+              t.type === 'ORDER_FULFILLED' ? 'bg-indigo-950 text-indigo-300 border border-indigo-500/30' :
+              'bg-amber-950 text-amber-300 border border-amber-500/30'
+            }">\${t.type}</span>
           </td>
+          <td class="py-3 px-3 font-semibold text-white">\${t.productName} <span class="text-slate-400 font-mono text-[11px]">(\${t.sku})</span></td>
+          <td class="py-3 px-3 text-slate-300">\${t.warehouse}</td>
+          <td class="py-3 px-3 font-bold \${t.quantityChanged > 0 ? 'text-emerald-400' : 'text-rose-400'}">\${t.quantityChanged > 0 ? '+' : ''}\${t.quantityChanged}</td>
+          <td class="py-3 px-3 text-slate-300 font-mono">\${t.previousStock} → \${t.newStock}</td>
+          <td class="py-3 px-3 text-slate-300">\${t.performedBy}</td>
+          <td class="py-3 px-3 text-slate-400">\${t.timestamp}</td>
+          <td class="py-3 px-3 text-slate-400 text-[11px]">\${t.reason}</td>
         </tr>
       \`).join('');
 
-      const adminOrdersRes = await fetch('/api/v1/admin/orders');
-      const adminOrders = await adminOrdersRes.json();
-      const adminOrdersTbody = document.getElementById('admin-allorders-tbody');
-      adminOrdersTbody.innerHTML = adminOrders.data.map(o => \`
-        <tr class="hover:bg-slate-800/40 transition">
-          <td class="py-3 px-3 font-mono font-bold text-indigo-400">\${o.id}</td>
-          <td class="py-3 px-3 font-semibold text-white">\${o.customerName}</td>
-          <td class="py-3 px-3 text-slate-300">\${o.items.map(i => \`\${i.name} (×\${i.quantity})\`).join(', ')}</td>
-          <td class="py-3 px-3 font-black text-white">\${formatRupees(o.total)}</td>
-          <td class="py-3 px-3 text-slate-300">\${o.paymentMethod || 'PhonePe (Demo)'}</td>
-          <td class="py-3 px-3">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold \${
-              o.status === 'CONFIRMED' ? 'bg-indigo-950 text-indigo-300 border border-indigo-500/40' :
-              o.status === 'SHIPPED' ? 'bg-sky-950 text-sky-300 border border-sky-500/40' :
-              o.status === 'DELIVERED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
-              'bg-rose-950 text-rose-300 border border-rose-500/40'
-            }">\${o.status}</span>
-          </td>
-          <td class="py-3 px-3 text-slate-400">\${o.date}</td>
-        </tr>
-      \`).join('');
-
+      // Summary KPIs
       const summaryRes = await fetch('/api/v1/admin/summary');
       const summary = await summaryRes.json();
       document.getElementById('admin-stat-rev').innerText = formatRupees(summary.data.revenue);
@@ -1225,7 +1355,6 @@ app.get("/", (req, res) => {
       document.getElementById('admin-stat-alerts').innerText = summary.data.lowStockCount + ' SKUs';
     }
 
-    updateAuthWidget();
     renderCart();
     refreshData();
   </script>
@@ -1236,14 +1365,14 @@ app.get("/", (req, res) => {
 
 function startServer(portToTry) {
   const server = app.listen(portToTry, () => {
-    console.log(`\n🚀 StockPulse E-Commerce OS is live on port \${portToTry}!`);
-    console.log(`👉 Access Portal:    http://localhost:\${portToTry}`);
-    console.log(`👉 Health Probe:     http://localhost:\${portToTry}/api/v1/health\n`);
+    console.log(`\n🚀 StockPulse Enterprise OS is running live on port \${portToTry}!`);
+    console.log(`👉 Access Portal: http://localhost:\${portToTry}`);
+    console.log(`👉 Health Probe:  http://localhost:\${portToTry}/api/v1/health\n`);
   });
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.log(`[PORT IN USE] Port \${portToTry} occupied, attempting port \${portToTry + 1}...`);
+      console.log(`[PORT IN USE] Port \${portToTry} occupied, trying \${portToTry + 1}...`);
       startServer(portToTry + 1);
     } else {
       console.error(err);
